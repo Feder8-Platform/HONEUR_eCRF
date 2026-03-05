@@ -208,13 +208,18 @@ class CologneLoader(BaseLoader):
 
     def load_rows(self, data):
         pos = data.tell()
-        dialect = csv.Sniffer().sniff(data.readline())
+        line = data.readline()
+        if not line:
+            logging.warning("Empty line!")
+            return self.errors
+        dialect = csv.Sniffer().sniff(line)
         data.seek(pos)
         rows = list(csv.DictReader(data, dialect = dialect))
+        logging.info("%s rows loaded", len(rows))
 
         for _row in rows:
             # Clean keys (lowercase and strip)
-            raw_row = {k.strip().lower(): v for k, v in _row.items()}
+            raw_row = {k.strip().lower(): v for k, v in _row.items() if k is not None}
 
             # Normalize the row: Use the mapped name if it exists, else keep original
             normalized_row = {}
@@ -405,8 +410,8 @@ def load_data(csv_file):
             if errors["top_level_errors"] or errors["row_errors"]:
                 log_errors(errors)
                 raise LoadError("rolling back transaction")
-    except LoadError:
-        pass
+    except LoadError as le:
+        logging.exception("Load error")
     return errors
 
 
