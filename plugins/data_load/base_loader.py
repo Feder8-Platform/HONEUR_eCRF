@@ -50,7 +50,7 @@ class Loader:
         return self.errors
 
     def check_and_get_date(self, column):
-        value = self.row[column]
+        value = self.row.get(column)
         some_dt = None
         try:
             some_dt = cast_date(value)
@@ -77,7 +77,7 @@ class Loader:
         return value
 
     def check_and_get_string(self, model, field_name, column):
-        value = self.row[column]
+        value = self.row.get(column)
         result = None
         if not value:
             return ""
@@ -104,7 +104,7 @@ class Loader:
         return result
 
     def check_and_get_patient_from_external_identifier(self, column):
-        value = self.row[column]
+        value = self.row.get(column)
         try:
             if not value:
                 raise ValueError(
@@ -130,7 +130,7 @@ class Loader:
         return patient
 
     def check_and_get_float(self, column):
-        value = self.row[column]
+        value = self.row.get(column)
         result = None
         try:
             result = float(value)
