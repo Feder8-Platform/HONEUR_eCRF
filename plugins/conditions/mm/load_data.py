@@ -50,7 +50,7 @@ class CologneLoader(BaseLoader):
 
 
     def get_and_check_external_identifier(self, column):
-        value = self.row[column]
+        value = self.row.get(column)
         try:
             if not value:
                 logging.error(f"No external identifier found for {value}")
@@ -69,7 +69,7 @@ class CologneLoader(BaseLoader):
         )
 
     def check_and_get_date(self, column):
-        value = self.row[column].strip()
+        value = self.row.get(column, "").strip()
         some_dt = None
         if value == "" or value == "-":
             return None
@@ -84,7 +84,7 @@ class CologneLoader(BaseLoader):
         return some_dt
 
     def check_diagnosis(self):
-        value = self.row["tatsächliche diagnose überprüft"]
+        value = self.row.get("tatsächliche diagnose überprüft")
         try:
             if not value == "MM":
                 if not value:
@@ -108,7 +108,7 @@ class CologneLoader(BaseLoader):
             self.add_error(column, self.row[column], str(err))
 
     def check_and_get_float(self, column):
-        value = self.row[column].strip()
+        value = self.row.get(column, "").strip()
         if value == "":
             return None
         if value == "-":
