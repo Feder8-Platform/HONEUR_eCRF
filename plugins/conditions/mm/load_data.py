@@ -18,7 +18,7 @@ class CologneLoader(BaseLoader):
     COLUMN_MAP = {
         "status zuletzt": "status bei letztem kontakt",
         "molekular-zytogenetik durchgeführt": "zytogenetik ja/nein",
-        "high risk? 17p ,(1q21 zugewinn) bei r-iss nicht dabei, 4:14, 14;16": "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)",
+        "high risk? 17p ,(1q21 zugewinn) bei r-iss nicht dabei, 4;14, 14;16": "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)",
         "ldh u/i": "ldh u/l (norm bis 250)",
         "ß2m mg/l": "ß2m mg/l (<3,5 oder >5,5mg/l)",
         "albumin g/dl": "albumin g/l (>35g/dl = normal)",
