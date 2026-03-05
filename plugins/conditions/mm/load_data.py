@@ -14,6 +14,41 @@ from entrytool.episode_categories import LineOfTreatmentEpisode
 
 
 class CologneLoader(BaseLoader):
+
+    COLUMN_MAP = {
+        "status zuletzt": "status bei letztem kontakt",
+        "molekular-zytogenetik durchgeführt": "zytogenetik ja/nein",
+        "high risk? 17p ,(1q21 zugewinn) bei r-iss nicht dabei, 4:14, 14;16": "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)",
+        "ldh u/i": "ldh u/l (norm bis 250)",
+        "ß2m mg/l": "ß2m mg/l (<3,5 oder >5,5mg/l)",
+        "albumin g/dl": "albumin g/l (>35g/dl = normal)",
+        "r-iss ed": "r-iss bei ed",
+        "iss ed": "iss mm ed",
+
+        # Treatment Line mappings
+        "datum ende 1. linie": "datum ende 1.-linie",
+        "welche 1. linie": "art der 1st-line",
+
+        "warum keine 2. therapie": "keine therapie 2. linie grund",
+        "welche 2. linie": "art 2. linie2",
+
+        "wenn keine indikation für 3.-linie: warum?": "keine therapie 3. line grund2",
+        "warum keine 3. therapie": "keine therapie 3. line grund2",
+        "datum beginn 3. linie": "datum beginn 3. linie2",
+        "datum ende 3. linie": "datum ende 3. linie",
+        "welche 3. linie": "art 3. linie",
+
+        "keine therapie 4. line grund?": "keine therapie 4. line grund2",
+        "welche 4. linie": "art der 4.linie",
+
+        "keine 5. linie  grund": "keine 5. linie grund",
+        "warum keine 5. linie": "keine 5. linie grund",
+        "welche 5. linie": "art der 5. linie",
+
+        "welche 6. linie": "art der 6. linie",
+    }
+
+
     def get_and_check_external_identifier(self, column):
         value = self.row[column]
         try:
@@ -170,16 +205,26 @@ class CologneLoader(BaseLoader):
                     regimen.end_treatment_reason = end_treatment_reason
                 regimen.set_consistency_token()
                 regimen.save()
+
     def load_rows(self, data):
         pos = data.tell()
         dialect = csv.Sniffer().sniff(data.readline())
         data.seek(pos)
         rows = list(csv.DictReader(data, dialect = dialect))
+
         for _row in rows:
-            row = {k.strip().lower(): v for k, v in _row.items()}
+            # Clean keys (lowercase and strip)
+            raw_row = {k.strip().lower(): v for k, v in _row.items()}
+
+            # Normalize the row: Use the mapped name if it exists, else keep original
+            normalized_row = {}
+            for key, value in raw_row.items():
+                target_key = self.COLUMN_MAP.get(key, key)
+                normalized_row[target_key] = value
+
             self.idx += 1
-            self.row = row
-            self.load_row(row)
+            self.row = normalized_row
+            self.load_row(normalized_row)
         return self.errors
 
     def load_row(self, data):
@@ -187,12 +232,8 @@ class CologneLoader(BaseLoader):
         if not hospital_number:
             return
         date_of_birth = self.check_and_get_date("geburtsdatum")
-        gender_string = data["geschlecht"]
-        gender = None
-        if gender_string == "w":
-            gender = "Female"
-        elif gender_string == "m":
-            gender = "Male"
+        gender_string = data.get("geschlecht", "").lower()
+        gender = "Female" if gender_string == "w" else "Male" if gender_string == "m" else None
         patient = Patient.objects.create()
         patient.patientload_set.update(
             source=entry_models.PatientLoad.LOADED_FROM_FILE
@@ -304,14 +345,6 @@ class CologneLoader(BaseLoader):
             maintenance_column="erhaltungs-therapie",
             end_treatment_reason_column="keine therapie 2. linie grund",
         )
-        # self.create_line_of_treatment(
-        #     patient,
-        #     start_date_column="datum beginn 1.-linie",
-        #     end_date_column="datum ende 1.-linie",
-        #     category_column="art der 1st-line",
-        #     regimen_column="erhaltungs-therapie",
-        #     end_treatment_reason_column="keine therapie 2. linie grund",
-        # )
         # 2nd line
         self.create_treatment_line(
             patient,
@@ -320,33 +353,24 @@ class CologneLoader(BaseLoader):
             regimen_column="art 2. linie2",
             maintenance_column="erhaltungstherapie 2. linie",
             end_treatment_reason_column="keine therapie 3. line grund2",
-        ) 
-        # self.create_line_of_treatment(
-        #     patient,
-        #     start_date_column="datum beginn 2. linie2",
-        #     end_date_column="datum ende 2. linie",
-        #     category_column="art 2. linie2",
-        #     regimen_column="erhaltungstherapie 2. linie",
-        #     end_treatment_reason_column="keine therapie 3. line grund2",
-        # )
-
+        )
+        # 3rd line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 3. linie2",
-            end_date_column="datum beginn 3. linie2",
+            end_date_column="datum ende 3. linie",
             regimen_column="art 3. linie",
             end_treatment_reason_column="keine therapie 4. line grund2",
         )
-        
-
+        # 4th line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 4. linie",
             end_date_column="datum ende 4. linie",
             regimen_column="art der 4.linie",
-            end_treatment_reason_column="keine 5. linie  grund",
+            end_treatment_reason_column="keine 5. linie grund",
         )
-
+        # 5th line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 5. linie",
@@ -354,7 +378,7 @@ class CologneLoader(BaseLoader):
             regimen_column="art der 5. linie",
             end_treatment_reason_column="warum keine 6. linie",
         )
-
+        # 6th line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 6. linie",
