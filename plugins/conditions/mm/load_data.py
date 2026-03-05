@@ -214,7 +214,13 @@ class CologneLoader(BaseLoader):
             return self.errors
         dialect = csv.Sniffer().sniff(line)
         data.seek(pos)
-        rows = list(csv.DictReader(data, dialect = dialect))
+        rows = list(csv.DictReader(
+            data,
+            dialect = dialect,
+            quotechar='"',
+            doublequote=True,
+            skipinitialspace=True
+        ))
         logging.info("%s rows loaded", len(rows))
 
         for _row in rows:
