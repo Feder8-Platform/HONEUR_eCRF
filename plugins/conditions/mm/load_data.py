@@ -324,16 +324,16 @@ class CologneLoader(BaseLoader):
                     expected_values=["del17p", "t(4;14)", "t(14;16)"],
                 )
         r_iss_bei_ed = self.row["r-iss bei ed"]
-        if r_iss_bei_ed == "-":
+        if not r_iss_bei_ed or str(r_iss_bei_ed).strip().lower() in ("-", "not determined"):
             r_iss_bei_ed = None
         diagnosis.r_iss_stage = r_iss_bei_ed
 
         iss_mm_ed = self.row["iss mm ed"]
-        if iss_mm_ed == "-":
+        if not iss_mm_ed or str(iss_mm_ed).strip().lower() in ("-", "not determined"):
             iss_mm_ed = None
         diagnosis.iss_stage = iss_mm_ed
         diagnosis.set_consistency_token()
-        logging.debug(f"Save diagnosis: {diagnosis}")
+        logging.info(f"Save diagnosis: {diagnosis}")
         diagnosis.save()
 
         # ==== Lab Tests ====
