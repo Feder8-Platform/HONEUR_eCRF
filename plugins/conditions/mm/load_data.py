@@ -92,11 +92,11 @@ class CologneLoader(BaseLoader):
         try:
             if not value == "MM":
                 if not value:
-                    logging.error("Diagnosis is not defined")
+                    logging.error("ValueError: Diagnosis is not defined")
                     raise ValueError(_("Diagnosis is not defined"))
                 else:
-                    logging.error(f"{value} is not a recognised diagnosis")
-                    raise ValueError(_("%s is not a recognised diagnosis"))
+                    logging.error(f"ValueError: {value} is not a recognised diagnosis")
+                    raise ValueError(_(f"{value} is not a recognised diagnosis"))
         except ValueError as err:
             self.add_error("tatsächliche diagnose überprüft", value, str(err))
 
