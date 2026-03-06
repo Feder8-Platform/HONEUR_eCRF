@@ -86,7 +86,9 @@ class CologneLoader(BaseLoader):
     def check_diagnosis(self):
         value = self.row.get("tatsächliche diagnose überprüft")
         if not value:
-            self.row.get("diagnose m1 comfortsuche")
+            logging.warning(f"Missing diagnosis in column 'tatsächliche diagnose überprüft'")
+            logging.warning("Fallback to column 'diagnose m1 comfortsuche'")
+            value = self.row.get("diagnose m1 comfortsuche")
         try:
             if not value == "MM":
                 if not value:
@@ -111,7 +113,7 @@ class CologneLoader(BaseLoader):
 
     def check_and_get_float(self, column):
         value = self.row.get(column, "").strip()
-        if value == "":
+        if value.lower in ("", "-", "keine laborwerte zur ed" ):
             return None
         if value == "-":
             return None
@@ -299,10 +301,8 @@ class CologneLoader(BaseLoader):
         diagnosis = episode.mmdiagnosisdetails_set.get()
         diagnosis.diag_date = diag_date
 
-        high_risk_cytogenic = self.row[
-            "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)"
-        ].strip()
-        if not high_risk_cytogenic == "nein":
+        high_risk_cytogenic = self.row.get("hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)").strip()
+        if high_risk_cytogenic and not high_risk_cytogenic in ("nein", "entfällt"):
             if "t(4;14)" in high_risk_cytogenic:
                 diagnosis.t4_14 = "Yes"
             if "del17p" in high_risk_cytogenic:
@@ -323,12 +323,13 @@ class CologneLoader(BaseLoader):
                     "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)",
                     expected_values=["del17p", "t(4;14)", "t(14;16)"],
                 )
-        r_iss_bei_ed = self.row["r-iss bei ed"]
+
+        r_iss_bei_ed = self.row.get("r-iss bei ed")
         if not r_iss_bei_ed or str(r_iss_bei_ed).strip().lower() in ("-", "not determined"):
             r_iss_bei_ed = None
         diagnosis.r_iss_stage = r_iss_bei_ed
 
-        iss_mm_ed = self.row["iss mm ed"]
+        iss_mm_ed = self.row.get("iss mm ed")
         if not iss_mm_ed or str(iss_mm_ed).strip().lower() in ("-", "not determined"):
             iss_mm_ed = None
         diagnosis.iss_stage = iss_mm_ed
