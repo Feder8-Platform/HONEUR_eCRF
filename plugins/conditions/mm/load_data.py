@@ -113,9 +113,7 @@ class CologneLoader(BaseLoader):
 
     def check_and_get_float(self, column):
         value = self.row.get(column, "").strip()
-        if value.lower in ("", "-", "keine laborwerte zur ed" ):
-            return None
-        if value == "-":
+        if value.lower() in ("", "-", "keine laborwerte zur ed"):
             return None
         if "," in value:
             value = value.replace(",", ".")
