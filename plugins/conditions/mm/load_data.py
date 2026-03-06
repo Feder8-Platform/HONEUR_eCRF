@@ -135,7 +135,7 @@ class CologneLoader(BaseLoader):
         end_treatment_reason_column=None,
     ): 
         start_date = self.check_and_get_date(start_date_column)
-        if self.row[end_date_column].strip() in ("ongoing", "entfällt", "unbekannt"):
+        if self.row.get(end_date_column, "").strip() in ("ongoing", "entfällt", "unbekannt"):
             end_date = None
         else:
             end_date = self.check_and_get_date(end_date_column)
@@ -149,7 +149,7 @@ class CologneLoader(BaseLoader):
             )
         end_treatment_reason = None
         if end_treatment_reason_column:
-            end_treatment_reason = self.row[end_treatment_reason_column]
+            end_treatment_reason = self.row.get(end_treatment_reason_column, "")
 
         if any([start_date, end_date, regimen_val, end_treatment_reason]):
             lot_episode = patient.episode_set.create(
