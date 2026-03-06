@@ -85,6 +85,8 @@ class CologneLoader(BaseLoader):
 
     def check_diagnosis(self):
         value = self.row.get("tatsächliche diagnose überprüft")
+        if not value:
+            self.row.get("diagnose m1 comfortsuche")
         try:
             if not value == "MM":
                 if not value:
@@ -286,6 +288,7 @@ class CologneLoader(BaseLoader):
                 patient_status.death_cause = deceased_status
             patient_status.death_date = date_of_last_contact_or_date_of_death
         patient_status.set_consistency_token()
+        logging.debug(f"Save patient: {patient}")
         patient_status.save()
 
         # ==== Diagnosis ====
@@ -330,6 +333,7 @@ class CologneLoader(BaseLoader):
             iss_mm_ed = None
         diagnosis.iss_stage = iss_mm_ed
         diagnosis.set_consistency_token()
+        logging.debug(f"Save diagnosis: {diagnosis}")
         diagnosis.save()
 
         # ==== Lab Tests ====
