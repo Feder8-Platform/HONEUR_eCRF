@@ -368,6 +368,14 @@ class MMCytogenetics(models.EpisodeSubrecord):
         max_length=10, choices=CHOICES, verbose_name=_("del 1p")
     )
 
+    amp1q21 = fields.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        choices=CHOICES,
+        verbose_name=_("amp 1q21")
+    )
+
     del_17p = fields.CharField(
         max_length=10, choices=CHOICES, verbose_name=_("del 17p")
     )
