@@ -106,6 +106,7 @@ class MMDiagnosisDetails(models.EpisodeSubrecord):
     del_13 = fields.CharField(blank=True, null=True, max_length=10, choices=CHOICES, verbose_name=_("del13"))
     t4_14 = fields.CharField(blank=True, null=True, max_length=10, choices=CHOICES, verbose_name=_("t(4;14)"))
     t4_16 = fields.CharField(blank=True, null=True, max_length=10, choices=CHOICES, verbose_name=_("t(4;16)"))
+    amp1q21 = fields.CharField(blank=True, null=True, max_length=10, choices=CHOICES, verbose_name=_("amp 1q21"))
 
     class Meta:
         verbose_name = _("Diagnosis Details")
@@ -366,14 +367,6 @@ class MMCytogenetics(models.EpisodeSubrecord):
     )
     del1p = fields.CharField(
         max_length=10, choices=CHOICES, verbose_name=_("del 1p")
-    )
-
-    amp1q21 = fields.CharField(
-        max_length=10,
-        blank=True,
-        null=True,
-        choices=CHOICES,
-        verbose_name=_("amp 1q21")
     )
 
     del_17p = fields.CharField(

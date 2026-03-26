@@ -9,11 +9,11 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name='mmcytogenetics',
+            model_name='mmdiagnosisdetails',
             name='amp1q21',
             field=models.CharField(
                 blank=True,
-                choices=[('Positive', 'Positive'), ('Negative', 'Negative'), ('Unknown', 'Unknown')],
+                choices=[('Yes', 'Yes'), ('No', 'No'), ('Unknown', 'Unknown')],
                 max_length=10,
                 null=True,
                 verbose_name='amp 1q21',
