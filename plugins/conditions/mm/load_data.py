@@ -292,7 +292,7 @@ class CologneLoader(BaseLoader):
         patient_status.save()
 
         # ==== Diagnosis ====
-        self.check_diagnosis()
+        # self.check_diagnosis() # not need to check anymore if diag_date is set
         diag_date = self.check_and_get_date(
             "datum erstdiagnose multiples myelom (idr kmp)"
         )
@@ -301,6 +301,10 @@ class CologneLoader(BaseLoader):
 
         high_risk_cytogenic = self.row.get("hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)").strip()
         if high_risk_cytogenic and not high_risk_cytogenic in ("nein", "entfällt"):
+            if high_risk_cytogenic.lower().strip() == "ja":
+                diagnosis.del_17p = "Yes"
+                diagnosis.t4_14 = "Yes"
+                diagnosis.t4_14_16 = "Yes"
             if "t(4;14)" in high_risk_cytogenic:
                 diagnosis.t4_14 = "Yes"
             if "del17p" in high_risk_cytogenic:
@@ -309,9 +313,13 @@ class CologneLoader(BaseLoader):
                 diagnosis.t4_14_16 = "Yes"
 
             other = (
-                high_risk_cytogenic.replace("t(4;14)", "")
+                high_risk_cytogenic
+                .replace("t(4;14)", "")
                 .replace("del17p", "")
                 .replace("t(14;16)", "")
+                .replace("ja", "")
+                .replace("nein", "")
+                .replace("entfällt", "")
                 .strip("-;")
                 .strip()
             )
