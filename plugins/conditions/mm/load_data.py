@@ -305,6 +305,7 @@ class CologneLoader(BaseLoader):
                 diagnosis.del_17p = "Yes"
                 diagnosis.t4_14 = "Yes"
                 diagnosis.t4_14_16 = "Yes"
+                diagnosis.amp1q21 = "Yes"
             if "t(4;14)" in high_risk_cytogenic:
                 diagnosis.t4_14 = "Yes"
             if "del17p" in high_risk_cytogenic:
