@@ -14,8 +14,43 @@ from entrytool.episode_categories import LineOfTreatmentEpisode
 
 
 class CologneLoader(BaseLoader):
+
+    COLUMN_MAP = {
+        "status zuletzt": "status bei letztem kontakt",
+        "molekular-zytogenetik durchgeführt": "zytogenetik ja/nein",
+        "high risk? 17p ,(1q21 zugewinn) bei r-iss nicht dabei, 4;14, 14;16": "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)",
+        "ldh u/i": "ldh u/l (norm bis 250)",
+        "ß2m mg/l": "ß2m mg/l (<3,5 oder >5,5mg/l)",
+        "albumin g/dl": "albumin g/l (>35g/dl = normal)",
+        "r-iss ed": "r-iss bei ed",
+        "iss ed": "iss mm ed",
+
+        # Treatment Line mappings
+        "datum ende 1. linie": "datum ende 1.-linie",
+        "welche 1. linie": "art der 1st-line",
+
+        "warum keine 2. therapie": "keine therapie 2. linie grund",
+        "welche 2. linie": "art 2. linie2",
+
+        "wenn keine indikation für 3.-linie: warum?": "keine therapie 3. line grund2",
+        "warum keine 3. therapie": "keine therapie 3. line grund2",
+        "datum beginn 3. linie": "datum beginn 3. linie2",
+        "datum ende 3. linie": "datum ende 3. linie",
+        "welche 3. linie": "art 3. linie",
+
+        "keine therapie 4. line grund?": "keine therapie 4. line grund2",
+        "welche 4. linie": "art der 4.linie",
+
+        "keine 5. linie  grund": "keine 5. linie grund",
+        "warum keine 5. linie": "keine 5. linie grund",
+        "welche 5. linie": "art der 5. linie",
+
+        "welche 6. linie": "art der 6. linie",
+    }
+
+
     def get_and_check_external_identifier(self, column):
-        value = self.row[column]
+        value = self.row.get(column)
         try:
             if not value:
                 logging.error(f"No external identifier found for {value}")
@@ -34,7 +69,7 @@ class CologneLoader(BaseLoader):
         )
 
     def check_and_get_date(self, column):
-        value = self.row[column].strip()
+        value = self.row.get(column, "").strip()
         some_dt = None
         if value == "" or value == "-":
             return None
@@ -49,15 +84,19 @@ class CologneLoader(BaseLoader):
         return some_dt
 
     def check_diagnosis(self):
-        value = self.row["tatsächliche diagnose überprüft"]
+        value = self.row.get("tatsächliche diagnose überprüft")
+        if not value:
+            logging.warning(f"Missing diagnosis in column 'tatsächliche diagnose überprüft'")
+            logging.warning("Fallback to column 'diagnose m1 comfortsuche'")
+            value = self.row.get("diagnose m1 comfortsuche")
         try:
             if not value == "MM":
                 if not value:
-                    logging.error("Diagnosis is not defined")
+                    logging.error("ValueError: Diagnosis is not defined")
                     raise ValueError(_("Diagnosis is not defined"))
                 else:
-                    logging.error(f"{value} is not a recognised diagnosis")
-                    raise ValueError(_("%s is not a recognised diagnosis"))
+                    logging.error(f"ValueError: {value} is not a recognised diagnosis")
+                    raise ValueError(_(f"{value} is not a recognised diagnosis"))
         except ValueError as err:
             self.add_error("tatsächliche diagnose überprüft", value, str(err))
 
@@ -73,10 +112,8 @@ class CologneLoader(BaseLoader):
             self.add_error(column, self.row[column], str(err))
 
     def check_and_get_float(self, column):
-        value = self.row[column].strip()
-        if value == "":
-            return None
-        if value == "-":
+        value = self.row.get(column, "").strip()
+        if value.lower() in ("", "-", "keine laborwerte zur ed"):
             return None
         if "," in value:
             value = value.replace(",", ".")
@@ -98,7 +135,7 @@ class CologneLoader(BaseLoader):
         end_treatment_reason_column=None,
     ): 
         start_date = self.check_and_get_date(start_date_column)
-        if self.row[end_date_column].strip() in ("ongoing", "entfällt", "unbekannt"):
+        if self.row.get(end_date_column, "").strip() in ("ongoing", "entfällt", "unbekannt"):
             end_date = None
         else:
             end_date = self.check_and_get_date(end_date_column)
@@ -112,7 +149,7 @@ class CologneLoader(BaseLoader):
             )
         end_treatment_reason = None
         if end_treatment_reason_column:
-            end_treatment_reason = self.row[end_treatment_reason_column]
+            end_treatment_reason = self.row.get(end_treatment_reason_column, "")
 
         if any([start_date, end_date, regimen_val, end_treatment_reason]):
             lot_episode = patient.episode_set.create(
@@ -170,16 +207,37 @@ class CologneLoader(BaseLoader):
                     regimen.end_treatment_reason = end_treatment_reason
                 regimen.set_consistency_token()
                 regimen.save()
+
     def load_rows(self, data):
         pos = data.tell()
-        dialect = csv.Sniffer().sniff(data.readline())
+        line = data.readline()
+        if not line:
+            logging.warning("Empty line!")
+            return self.errors
+        dialect = csv.Sniffer().sniff(line)
         data.seek(pos)
-        rows = list(csv.DictReader(data, dialect = dialect))
+        rows = list(csv.DictReader(
+            data,
+            dialect = dialect,
+            quotechar='"',
+            doublequote=True,
+            skipinitialspace=True
+        ))
+        logging.info("%s rows loaded", len(rows))
+
         for _row in rows:
-            row = {k.strip().lower(): v for k, v in _row.items()}
+            # Clean keys (lowercase and strip)
+            raw_row = {k.strip().lower(): v for k, v in _row.items() if k is not None}
+
+            # Normalize the row: Use the mapped name if it exists, else keep original
+            normalized_row = {}
+            for key, value in raw_row.items():
+                target_key = self.COLUMN_MAP.get(key, key)
+                normalized_row[target_key] = value
+
             self.idx += 1
-            self.row = row
-            self.load_row(row)
+            self.row = normalized_row
+            self.load_row(normalized_row)
         return self.errors
 
     def load_row(self, data):
@@ -187,12 +245,8 @@ class CologneLoader(BaseLoader):
         if not hospital_number:
             return
         date_of_birth = self.check_and_get_date("geburtsdatum")
-        gender_string = data["geschlecht"]
-        gender = None
-        if gender_string == "w":
-            gender = "Female"
-        elif gender_string == "m":
-            gender = "Male"
+        gender_string = data.get("geschlecht", "").lower()
+        gender = "Female" if gender_string == "w" else "Male" if gender_string == "m" else None
         patient = Patient.objects.create()
         patient.patientload_set.update(
             source=entry_models.PatientLoad.LOADED_FROM_FILE
@@ -234,20 +288,24 @@ class CologneLoader(BaseLoader):
                 patient_status.death_cause = deceased_status
             patient_status.death_date = date_of_last_contact_or_date_of_death
         patient_status.set_consistency_token()
+        logging.debug(f"Save patient: {patient}")
         patient_status.save()
 
         # ==== Diagnosis ====
-        self.check_diagnosis()
+        # self.check_diagnosis() # not need to check anymore if diag_date is set
         diag_date = self.check_and_get_date(
             "datum erstdiagnose multiples myelom (idr kmp)"
         )
         diagnosis = episode.mmdiagnosisdetails_set.get()
         diagnosis.diag_date = diag_date
 
-        high_risk_cytogenic = self.row[
-            "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)"
-        ].strip()
-        if not high_risk_cytogenic == "nein":
+        high_risk_cytogenic = self.row.get("hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)").strip()
+        if high_risk_cytogenic and not high_risk_cytogenic in ("nein", "entfällt"):
+            if high_risk_cytogenic.lower().strip() == "ja":
+                diagnosis.del_17p = "Yes"
+                diagnosis.t4_14 = "Yes"
+                diagnosis.t4_14_16 = "Yes"
+                diagnosis.amp1q21 = "Yes"
             if "t(4;14)" in high_risk_cytogenic:
                 diagnosis.t4_14 = "Yes"
             if "del17p" in high_risk_cytogenic:
@@ -256,9 +314,13 @@ class CologneLoader(BaseLoader):
                 diagnosis.t4_14_16 = "Yes"
 
             other = (
-                high_risk_cytogenic.replace("t(4;14)", "")
+                high_risk_cytogenic
+                .replace("t(4;14)", "")
                 .replace("del17p", "")
                 .replace("t(14;16)", "")
+                .replace("ja", "")
+                .replace("nein", "")
+                .replace("entfällt", "")
                 .strip("-;")
                 .strip()
             )
@@ -268,16 +330,18 @@ class CologneLoader(BaseLoader):
                     "hochrisiko zytogen. (a) del17p, b) t(4;14), 3) t(14;16)",
                     expected_values=["del17p", "t(4;14)", "t(14;16)"],
                 )
-        r_iss_bei_ed = self.row["r-iss bei ed"]
-        if r_iss_bei_ed == "-":
+
+        r_iss_bei_ed = self.row.get("r-iss bei ed")
+        if not r_iss_bei_ed or str(r_iss_bei_ed).strip().lower() in ("-", "not determined"):
             r_iss_bei_ed = None
         diagnosis.r_iss_stage = r_iss_bei_ed
 
-        iss_mm_ed = self.row["iss mm ed"]
-        if iss_mm_ed == "-":
+        iss_mm_ed = self.row.get("iss mm ed")
+        if not iss_mm_ed or str(iss_mm_ed).strip().lower() in ("-", "not determined"):
             iss_mm_ed = None
         diagnosis.iss_stage = iss_mm_ed
         diagnosis.set_consistency_token()
+        logging.info(f"Save diagnosis: {diagnosis}")
         diagnosis.save()
 
         # ==== Lab Tests ====
@@ -304,14 +368,6 @@ class CologneLoader(BaseLoader):
             maintenance_column="erhaltungs-therapie",
             end_treatment_reason_column="keine therapie 2. linie grund",
         )
-        # self.create_line_of_treatment(
-        #     patient,
-        #     start_date_column="datum beginn 1.-linie",
-        #     end_date_column="datum ende 1.-linie",
-        #     category_column="art der 1st-line",
-        #     regimen_column="erhaltungs-therapie",
-        #     end_treatment_reason_column="keine therapie 2. linie grund",
-        # )
         # 2nd line
         self.create_treatment_line(
             patient,
@@ -320,33 +376,24 @@ class CologneLoader(BaseLoader):
             regimen_column="art 2. linie2",
             maintenance_column="erhaltungstherapie 2. linie",
             end_treatment_reason_column="keine therapie 3. line grund2",
-        ) 
-        # self.create_line_of_treatment(
-        #     patient,
-        #     start_date_column="datum beginn 2. linie2",
-        #     end_date_column="datum ende 2. linie",
-        #     category_column="art 2. linie2",
-        #     regimen_column="erhaltungstherapie 2. linie",
-        #     end_treatment_reason_column="keine therapie 3. line grund2",
-        # )
-
+        )
+        # 3rd line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 3. linie2",
-            end_date_column="datum beginn 3. linie2",
+            end_date_column="datum ende 3. linie",
             regimen_column="art 3. linie",
             end_treatment_reason_column="keine therapie 4. line grund2",
         )
-        
-
+        # 4th line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 4. linie",
             end_date_column="datum ende 4. linie",
             regimen_column="art der 4.linie",
-            end_treatment_reason_column="keine 5. linie  grund",
+            end_treatment_reason_column="keine 5. linie grund",
         )
-
+        # 5th line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 5. linie",
@@ -354,7 +401,7 @@ class CologneLoader(BaseLoader):
             regimen_column="art der 5. linie",
             end_treatment_reason_column="warum keine 6. linie",
         )
-
+        # 6th line
         self.create_treatment_line(
             patient,
             start_date_column="datum beginn 6. linie",
@@ -381,8 +428,8 @@ def load_data(csv_file):
             if errors["top_level_errors"] or errors["row_errors"]:
                 log_errors(errors)
                 raise LoadError("rolling back transaction")
-    except LoadError:
-        pass
+    except LoadError as le:
+        logging.exception("Load error")
     return errors
 
 

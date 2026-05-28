@@ -301,6 +301,12 @@ OPAL_DEFAULT_SEARCH_FIELDS = [
     "id"
 ]
 
+# This list acts as a whitelist for the context processor
+OPAL_SETTING_NAMES = [
+    'OPAL_BRAND_NAME',
+    'OPAL_THEME',
+]
+
 # ========== PROJECT ==========
 OPAL_BRAND_NAME = "Data Entry Tool"
 VERSION_NUMBER = "0.2"

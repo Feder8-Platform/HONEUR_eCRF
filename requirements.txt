@@ -35,6 +35,6 @@ psycopg2==2.8.6
 gunicorn==0.17.4
 
 # Used but for LDAP support
-django-auth-ldap==1.6.1
+# django-auth-ldap==1.6.1
 # Used for user DB support
 bcrypt
