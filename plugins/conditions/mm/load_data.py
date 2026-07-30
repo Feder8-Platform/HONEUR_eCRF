@@ -1,4 +1,5 @@
 import io
+import codecs
 import datetime
 import csv
 import logging
@@ -11,6 +12,10 @@ from django.db import transaction
 from plugins.data_load.load_data import LoadError
 from plugins.conditions.mm import episode_categories
 from entrytool.episode_categories import LineOfTreatmentEpisode
+
+
+BOM_CHAR = codecs.BOM_UTF8.decode("utf-8")
+SNIFFER_SAMPLE_SIZE = 16384
 
 
 class CologneLoader(BaseLoader):
@@ -210,11 +215,14 @@ class CologneLoader(BaseLoader):
 
     def load_rows(self, data):
         pos = data.tell()
-        line = data.readline()
-        if not line:
+        # Read a sample rather than a single line: a quoted header field can
+        # contain an embedded line break, which would otherwise truncate the
+        # sample mid-quote and cause the sniffer to misdetect the delimiter.
+        sample = data.read(SNIFFER_SAMPLE_SIZE)
+        if not sample:
             logging.warning("Empty line!")
             return self.errors
-        dialect = csv.Sniffer().sniff(line)
+        dialect = csv.Sniffer().sniff(sample)
         data.seek(pos)
         rows = list(csv.DictReader(
             data,
@@ -226,8 +234,13 @@ class CologneLoader(BaseLoader):
         logging.info("%s rows loaded", len(rows))
 
         for _row in rows:
-            # Clean keys (lowercase and strip)
-            raw_row = {k.strip().lower(): v for k, v in _row.items() if k is not None}
+            # Clean keys (lowercase, strip, drop any leading UTF-8 BOM, and
+            # collapse whitespace) so header cells whose quoted text wraps
+            # onto multiple physical lines still match COLUMN_MAP entries.
+            raw_row = {
+                " ".join(k.strip().lower().lstrip(BOM_CHAR).split()): v
+                for k, v in _row.items() if k is not None
+            }
 
             # Normalize the row: Use the mapped name if it exists, else keep original
             normalized_row = {}
