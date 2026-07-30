@@ -78,9 +78,13 @@ class CologneLoader(BaseLoader):
         some_dt = None
         if value == "" or value == "-":
             return None
-        try:
-            some_dt = datetime.datetime.strptime(value, "%d.%m.%Y").date()
-        except Exception:
+        for date_format in ("%d.%m.%Y", "%d/%m/%Y"):
+            try:
+                some_dt = datetime.datetime.strptime(value, date_format).date()
+                break
+            except ValueError:
+                continue
+        if some_dt is None:
             logging.error(f"Unable to convert {value} into a date with the format dd.mm.yyyy")
             description = (
                 _("Unable to convert %s into a date with the format dd.mm.yyyy") % value
